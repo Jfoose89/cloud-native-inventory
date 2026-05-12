@@ -2,7 +2,6 @@ using Azure.Identity;
 using CloudNativeInventory.Api.Data;
 using CloudNativeInventory.Api.Models;
 using Microsoft.EntityFrameworkCore;
-// using Azure.Identity; // TODO (Del 4): Krävs för Key Vault
 
 var builder = WebApplication.CreateBuilder(args);
 

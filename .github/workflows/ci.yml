@@ -8,6 +8,8 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  REGISTRY: jorjandev.azurecr.io
+  IMAGE_NAME: inventory-api
 
 jobs:
   build-and-test:
@@ -29,3 +31,47 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build --verbosity normal
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Log in to ACR
+        uses: docker/login-action@v3
+        with:
+          registry: jorjandev.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: CloudNativeInventory.Api/Dockerfile
+          push: true
+          tags: |
+            jorjandev.azurecr.io/inventory-api:latest
+            jorjandev.azurecr.io/inventory-api:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          acrName: jorjandev
+          containerAppName: ca-jordan-dev
+          resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          imageToDeploy: jorjandev.azurecr.io/inventory-api:${{ github.sha }}
